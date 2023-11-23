@@ -1,8 +1,7 @@
 #include "KalmanFilter.hpp"
-#include <iostream>
 
 // overloaded constructor
-KalmanFilter::KalmanFilter(const double delta_t, const double q, const double r) : I(6UL)
+KalmanFilter::KalmanFilter(const double delta_t, const blaze::StaticMatrix<double, 6UL, 6UL> Q_, const blaze::StaticMatrix<double, 3UL, 3UL> R_) : I(6UL), Q(Q_), R(R_)
 {
     // Sampling period of the NDI tracking system
     dt = delta_t;
@@ -20,19 +19,13 @@ KalmanFilter::KalmanFilter(const double delta_t, const double q, const double r)
          {0.00, 0.00, 1.00, 0.00, 0.00, 0.00},
          {0.00, 0.00, 0.00, 0.00, 1.00, 0.00}};
 
-    // initial state
-    x = 1.00;
-    blaze::diagonal(Q) = q; // covariance of the process noise 
-    blaze::diagonal(R) = r; // covariance of the measurements
+    // initial state -- positions at (100.00, 100.00, 100.00) millimeters
+    x[0UL] = x[2UL] = x[4UL] = 100.00;
+    // initial velocities at (0.00, 0.00, 0.00) so as to not to bias the filter -- in case the actual velocities are different in absolute value (direction) from the initial filter velocities
+    x[1UL] = x[3UL] = x[5UL] = 0.00;
 
     // initial corariance
     Pxx = A * x * blaze::trans(x) * blaze::trans(A) + Q;
-}
-
-// KalmanFilter desctructor
-KalmanFilter::~KalmanFilter()
-{
-    // nothing to be done
 }
 
 // copy constructor
@@ -107,8 +100,8 @@ KalmanFilter &KalmanFilter::operator=(KalmanFilter &&rhs) noexcept
 
 // update core of the Kalman filter
 void KalmanFilter::Loop(std::vector<double> &measurement, std::vector<double> &estimate)
-{   
-    // predicted measurement
+{
+    // predicted measurement y[k+1|k]
     y_hat = C * x;
 
     // measurement covariance
@@ -120,22 +113,22 @@ void KalmanFilter::Loop(std::vector<double> &measurement, std::vector<double> &e
     // acquiring the measurements
     y[0UL] = measurement[0UL];
     y[1UL] = measurement[1UL];
-    y[2UL] = measurement[2UL];  
+    y[2UL] = measurement[2UL];
 
-    // updating the state estimates ==> filtered state
+    // updating the state estimates ==> filtered state through innovation process
     x = x + W * (y - y_hat);
 
     // returning the current filtered state
-    estimate[0UL] = x[0UL];
-    estimate[1UL] = x[2UL];
-    estimate[2UL] = x[4UL];
+    estimate[0UL] = x[0UL]; // position in the x direction
+    estimate[1UL] = x[2UL]; // position in the y direction
+    estimate[2UL] = x[4UL]; // position in the z direction
 
-    // updating the state covariance
+    // updating the state estimate covariance Pxx[k|k]
     Pxx = (I - W * C) * Pxx;
 
-    // next state prediction
+    // next state prediction x[k+1|x]
     x = A * x;
 
-    // predicted state covariance
+    // predicted state covariance Pxx[k+1|k]
     Pxx = A * Pxx * blaze::trans(A) + Q;
 }

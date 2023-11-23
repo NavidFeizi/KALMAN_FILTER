@@ -1,7 +1,6 @@
 #pragma once
 
 #include <blaze/Blaze.h>
-#include <cmath>
 
 class KalmanFilter
 {
@@ -10,10 +9,10 @@ public:
     KalmanFilter() = delete;
 
     // KalmanFilter constructor
-    KalmanFilter(const double delta_t, const double q, const double r);
+    KalmanFilter(const double delta_t, const blaze::StaticMatrix<double, 6UL, 6UL> Q_, const blaze::StaticMatrix<double, 3UL, 3UL> R_);
 
     // KalmanFilter desctructor
-    ~KalmanFilter();
+    ~KalmanFilter() = default;
 
     // copy constructor
     KalmanFilter(const KalmanFilter &rhs);
@@ -39,7 +38,7 @@ private:
     blaze::StaticMatrix<double, 6UL, 6UL> Pxx;
     blaze::IdentityMatrix<double> I;
     blaze::StaticMatrix<double, 6UL, 3UL> W;
-    blaze::StaticMatrix<double, 3UL, 3UL>S_inv;
-    blaze::DiagonalMatrix<blaze::StaticMatrix<double, 6UL, 6UL>> Q;
-    blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL>> R;
+    blaze::StaticMatrix<double, 3UL, 3UL> S_inv;
+    blaze::StaticMatrix<double, 6UL, 6UL> Q;
+    blaze::StaticMatrix<double, 3UL, 3UL> R;
 };

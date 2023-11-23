@@ -1,21 +1,16 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
-
 #include <iostream>
 #include <memory>
-#include <limits>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <boost/tokenizer.hpp>
-#include <chrono>
-
-#include <blaze/Blaze.h>
 
 #include "KalmanFilter.hpp"
 
 template <typename MatrixType>
-MatrixType readFromCSV(MatrixType &Mat, const std::string &trajectoryName);
+MatrixType readFromCSV(MatrixType &Mat, const std::string &fileName);
+
+// function that computes the covariance matrix of a set of EM data readings
+blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, 10050UL, 3UL> &Mat);
 
 int main()
 {
@@ -33,17 +28,26 @@ int main()
     // Container for storing the noisy EM sensor readings
     blaze::HybridMatrix<double, 10050UL, 15UL> EM_readings;
 
-    // speficy which trajectory to consider
+    // speficy which file to read
     std::string fileName("EM_Recordings");
+    // reads the file and stores data in memory
     readFromCSV(EM_readings, fileName);
+
+    // number of data points in the data file (raw measurements to be filtered)
     const size_t numRows = EM_readings.rows();
 
+    // Kalman filter parameters
     double dt = 0.025; // sampling period of the tracking system
-    double q = 1.00;   // process variance 
-    double r = 20.00;  // measurement variance 
+    // process variance
+    blaze::StaticMatrix<double, 6UL, 6UL> Q;
+    // measurement variance
+    blaze::StaticMatrix<double, 3UL, 3UL> R;
 
-    // Parameters for Kalman Filterring
-    std::shared_ptr<KalmanFilter> KLF_tip = std::make_shared<KalmanFilter>(dt, q, r);
+    blaze::diagonal(Q) = 15.00;
+    R = computeCovarianceMatrix( blaze::submatrix( EM_readings, 0UL, 8UL, numRows, 3UL) );
+
+    // Instantiating the Kalman Filter
+    std::shared_ptr<KalmanFilter> KLF_tip = std::make_shared<KalmanFilter>(dt, Q, R);
 
     // blaze::StaticVector<double, 3UL> target = blaze::StaticVector<double, 3UL>(0);
     std::vector<double> target(3UL, 0.00), filtered_State(3UL, 0.00);
@@ -59,7 +63,7 @@ int main()
         // Saving commanded joint values to file
         file << filtered_State[0UL] << ","
              << filtered_State[1UL] << ","
-             << filtered_State[2UL] << "," 
+             << filtered_State[2UL] << ","
              << target[0UL] << ","
              << target[1UL] << ","
              << target[2UL]
@@ -69,18 +73,45 @@ int main()
     // close the dump file
     file.close();
 
+    std::cout << "Covariance of the measurements: \n" << R << std::endl;
+    
+
     return 0;
+}
+
+// function that computes the covariance matrix of a set of EM data readings
+blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, 10050UL, 3UL> &Mat)
+{
+    // Calculate the mean of each dimension
+    blaze::StaticVector<double, 3UL, blaze::rowVector> mean = {blaze::mean(blaze::column<0UL>(Mat)),
+                                                               blaze::mean(blaze::column<1UL>(Mat)),
+                                                               blaze::mean(blaze::column<2UL>(Mat))};    
+    
+    // number of data points in the matrix
+    const size_t numRows = Mat.rows();
+
+    // computing the deviation matrix
+    blaze::HybridMatrix<double, 10050UL, 3UL> D(Mat);
+
+    // Subtract the mean in-place to get the deviation matrix
+    for (size_t row = 0UL; row < numRows; ++row) {
+        blaze::row(D, row) -= mean;
+    }
+
+    blaze::StaticMatrix<double, 3UL, 3UL> Cov = blaze::trans(D) * D / (numRows - 1);
+
+    return Cov;    
 }
 
 // function that reads relevant clinical data from CSV files for each case
 template <typename MatrixType>
-MatrixType readFromCSV(MatrixType &Mat, const std::string &trajectoryName)
+MatrixType readFromCSV(MatrixType &Mat, const std::string &fileName)
 {
     std::string filePath, file;
 
     // relative path to the folder containing clinical data
     filePath = "../../InputFiles/";
-    file = trajectoryName + ".csv";
+    file = fileName + ".csv";
 
     // file from which the information will be read from
     std::ifstream CSV_file;

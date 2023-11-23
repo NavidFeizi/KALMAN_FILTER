@@ -17,14 +17,8 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 
 # addind the library and main executable directories to the project tree
-add_subdirectory(executable) # main executable
-add_subdirectory(lib_emtracker)     # static library for commanding Maxon motors
-
-# LAPACK libraries
-find_package(LAPACK REQUIRED)
-
-# Blaze library
-find_package(blaze CONFIG REQUIRED)
+add_subdirectory(executable)        # main executable
+add_subdirectory(Kalman_Filter)     # static library for implementing the Kalman Filter
 
 # Boost Libraries
 set(Boost_USE_STATIC_LIBS ON) # only find static libs
@@ -35,10 +29,6 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 
 find_package(Boost REQUIRED)
 
-set(BLA_VENDOR OpenBLAS)
-set(BLA_STATIC                   ON)  # use static linkage
-find_package(BLAS)
-
 # Check for the Boost libray, if found print message, include dirs and link libraries.
 if(Boost_FOUND)
     message(STATUS "Boost has been found!")
@@ -47,30 +37,3 @@ if(Boost_FOUND)
 elseif(NOT Boost_FOUND)
     error(STATUS "Boost has not been found!")
 endif(Boost_FOUND)
-
-if (BLAS_FOUND)
-    message(STATUS "BLAS has been found!")
-    include_directories(${BLAS_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${BLAS_LIBRARIES})
-elseif(NOT BLAS_FOUND)
-    error(STATUS "BLAS library has not been found")
-endif()
-
-# Check for the LAPACK libray, if found print message, include dirs and link libraries.
-if(LAPACK_FOUND)
-    message("LAPACK has been found!")
-    include_directories(${LAPACK_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LAPACK_LIBRARIES})
-    target_link_libraries(EMT PRIVATE ${LAPACK_LIBRARIES})
-elseif(NOT LAPACK_FOUND)
-    error("LAPACK API has not been found")
-endif(LAPACK_FOUND)
-
-# Check for the Blaze libray, if found print message, include dirs and link libraries.
-if(blaze_FOUND)
-    message(STATUS "Blaze has been found!")
-    target_link_libraries(${PROJECT_NAME} INTERFACE blaze::blaze)
-    target_link_libraries(EMT INTERFACE blaze::blaze)
-elseif(NOT Blaze_FOUND)
-    error(STATUS "Blaze has not been found!")
-endif(blaze_FOUND)
