@@ -1,0 +1,12 @@
+# ignores the directory containing the VSCode configuration files
+.vscode/*
+
+#ignores the build directory
+build/*
+
+#ignores compiler's cache info
+.cache/
+
+# Ignore OS-specific files
+Thumbs.db
+.DS_Store
