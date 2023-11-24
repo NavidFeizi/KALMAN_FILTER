@@ -10,7 +10,8 @@ template <typename MatrixType>
 MatrixType readFromCSV(MatrixType &Mat, const std::string &fileName);
 
 // function that computes the covariance matrix of a set of EM data readings
-blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, 10050UL, 3UL> &Mat);
+template<size_t N>
+blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, N, 3UL> &Mat);
 
 int main()
 {
@@ -26,7 +27,9 @@ int main()
     }
 
     // Container for storing the noisy EM sensor readings
-    blaze::HybridMatrix<double, 10050UL, 15UL> EM_readings;
+    const size_t maxRows = 10050UL;
+    blaze::HybridMatrix<double, maxRows, 15UL> EM_readings;
+    blaze::HybridMatrix<double, maxRows, 3UL> EM_distalReadings;
 
     // speficy which file to read
     std::string fileName("EM_Recordings");
@@ -36,6 +39,12 @@ int main()
     // number of data points in the data file (raw measurements to be filtered)
     const size_t numRows = EM_readings.rows();
 
+    // matrix containing the EM readings at the distal end of the robot
+    EM_distalReadings = blaze::submatrix( EM_readings, 0UL, 8UL, numRows, 3UL);
+
+    std::cout << "EM_distalReadings.rows(): " << EM_distalReadings.rows() << " EM_distalReadings.columns(): " << EM_distalReadings.columns() << std::endl
+              << "EM_readings.rows(): " << EM_readings.rows() << " EM_readings.columns(): " << EM_readings.columns() << std::endl;
+
     // Kalman filter parameters
     double dt = 0.025; // sampling period of the tracking system
     // process variance
@@ -44,7 +53,7 @@ int main()
     blaze::StaticMatrix<double, 3UL, 3UL> R;
 
     blaze::diagonal(Q) = 15.00;
-    R = computeCovarianceMatrix( blaze::submatrix( EM_readings, 0UL, 8UL, numRows, 3UL) );
+    R = computeCovarianceMatrix( EM_distalReadings );
 
     // Instantiating the Kalman Filter
     std::shared_ptr<KalmanFilter> KLF_tip = std::make_shared<KalmanFilter>(dt, Q, R);
@@ -80,25 +89,23 @@ int main()
 }
 
 // function that computes the covariance matrix of a set of EM data readings
-blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, 10050UL, 3UL> &Mat)
+template<size_t N>
+blaze::StaticMatrix<double, 3UL, 3UL> computeCovarianceMatrix(const blaze::HybridMatrix<double, N, 3UL> &Mat)
 {
     // Calculate the mean of each dimension
     blaze::StaticVector<double, 3UL, blaze::rowVector> mean = {blaze::mean(blaze::column<0UL>(Mat)),
                                                                blaze::mean(blaze::column<1UL>(Mat)),
-                                                               blaze::mean(blaze::column<2UL>(Mat))};    
+                                                               blaze::mean(blaze::column<2UL>(Mat))};
     
-    // number of data points in the matrix
-    const size_t numRows = Mat.rows();
-
     // computing the deviation matrix
-    blaze::HybridMatrix<double, 10050UL, 3UL> D(Mat);
+    blaze::HybridMatrix<double, N, 3UL> D(Mat);
 
     // Subtract the mean in-place to get the deviation matrix
-    for (size_t row = 0UL; row < numRows; ++row) {
+    for (size_t row = 0UL; row < Mat.rows(); ++row) {
         blaze::row(D, row) -= mean;
     }
 
-    blaze::StaticMatrix<double, 3UL, 3UL> Cov = blaze::trans(D) * D / (numRows - 1);
+    blaze::StaticMatrix<double, 3UL, 3UL> Cov = blaze::trans(D) * D / (Mat.rows() - 1);
 
     return Cov;    
 }

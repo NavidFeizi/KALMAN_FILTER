@@ -54,13 +54,3 @@ plt.tight_layout()
 
 # Show the plot
 plt.show()
-
-# Assuming each column in data represents a variable and each row an observation
-# Select columns 3, 4, and 5 (assuming 0-based indexing)
-selected_columns = data.iloc[:, 3:6]
-
-# Compute the covariance matrix
-covariance_matrix = np.cov(selected_columns, rowvar=False)
-
-print("Covariance Matrix:")
-print(covariance_matrix)
